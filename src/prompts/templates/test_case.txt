@@ -1,0 +1,31 @@
+Given the following pull request changes:
+
+Title: {pr_title}
+Description: {pr_description}
+Risk Level: {risk_level}
+
+Changed Files:
+{changes}
+
+Diffs:
+{diffs}
+
+Generate specific test cases in this format:
+
+TC-001:
+- Title: [Test objective]
+- Priority: {risk_level}
+- Description: [Test scenario]
+- Steps:
+  - [Step 1]
+  - [Step 2]
+- Expected Results: [Expected outcome]
+
+Focus on:
+- Code changes shown in diffs
+- Security implications
+- Error handling
+- Edge cases
+- Backwards compatibility
+
+Generate at least 3 test cases.
