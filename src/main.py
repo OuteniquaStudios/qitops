@@ -5,7 +5,7 @@ import argparse
 
 def main():
     parser = argparse.ArgumentParser(
-        description='Generate test cases from GitHub PRs'
+        description='Generate test cases from PRs'
     )
     parser.add_argument('repo')
     parser.add_argument('pr_number', type=int)
