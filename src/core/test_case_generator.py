@@ -74,46 +74,46 @@ class TestCaseGenerator:
     def _parse_test_cases(self, llm_output: str) -> List[Dict]:
         test_cases = []
         try:
-            case_pattern = r'TC-(\d+):'
-            sections = re.split(case_pattern, llm_output)
-            
-            if sections[0].strip() == '':
-                sections = sections[1:]
+            # Split into individual test cases
+            case_blocks = re.split(r'TC-\d+:', llm_output)
+            if not case_blocks[0].strip():
+                case_blocks = case_blocks[1:]  # Remove empty first split
                 
-            for i in range(0, len(sections), 2):
-                if i + 1 >= len(sections):
-                    break
+            for i, block in enumerate(case_blocks, 1):
+                if not block.strip():
+                    continue
                     
-                case_id = sections[i]
-                content = sections[i + 1]
+                # Extract fields using multiline patterns
+                title_match = re.search(r'Title:\s*(.*?)(?=\n-|\Z)', block, re.MULTILINE)
+                priority_match = re.search(r'Priority:\s*(.*?)(?=\n-|\Z)', block, re.MULTILINE)
+                desc_match = re.search(r'Description:\s*(.*?)(?=\n-|\Z)', block, re.MULTILINE)
                 
-                def extract_field(pattern: str, text: str, default: str = '') -> str:
-                    match = re.search(pattern, text)
-                    return match.group(1).strip() if match else default
-                
-                # Extract test case fields
-                test_case = {
-                    "id": f"TC-{case_id}",
-                    "title": extract_field(r'Title:\s*(.*?)(?:\n|$)', content, 'No title'),
-                    "priority": extract_field(r'Priority:\s*(.*?)(?:\n|$)', content, 'Medium'),
-                    "description": extract_field(r'Description:\s*(.*?)(?:\n|$)', content, 'No description'),
-                    "steps": [],
-                    "expected_result": extract_field(r'Expected Results:\s*(.*?)(?:\n|$)', content, 'No expected results')
-                }
-                
-                # Extract steps
-                steps_match = re.search(r'Steps:(.*?)(?:Expected Results:|$)', content, re.DOTALL)
-                if steps_match:
-                    test_case["steps"] = [
-                        step.strip()[2:] for step in steps_match.group(1).strip().split('\n')
-                        if step.strip() and step.strip().startswith('-')
+                # Extract steps as list
+                steps = []
+                steps_section = re.search(r'Steps:(.*?)(?=Expected Results:|\Z)', block, re.DOTALL)
+                if steps_section:
+                    steps = [
+                        s.strip().lstrip('- ') 
+                        for s in steps_section.group(1).strip().split('\n')
+                        if s.strip() and s.strip().startswith('-')
                     ]
                 
+                # Extract expected results
+                expected_match = re.search(r'Expected Results:\s*(.*?)(?=\n\n|\Z)', block, re.DOTALL)
+                
+                test_case = {
+                    "id": f"TC-{i:03d}",
+                    "title": title_match.group(1).strip() if title_match else "No title",
+                    "priority": priority_match.group(1).strip() if priority_match else "Medium",
+                    "description": desc_match.group(1).strip() if desc_match else "No description",
+                    "steps": steps,
+                    "expected_result": expected_match.group(1).strip() if expected_match else "No expected results"
+                }
                 test_cases.append(test_case)
                 
         except Exception as e:
             self.logger.error(f"Error parsing test cases: {str(e)}")
-            self.logger.debug(f"LLM output was: {llm_output}")
+            self.logger.debug(f"Raw LLM output:\n{llm_output}")
         
         return test_cases
 

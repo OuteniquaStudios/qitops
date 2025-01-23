@@ -1,48 +1,53 @@
 pr_number: 1
-pr_title: Bump axios from 0.21.4 to 0.28.0
+pr_title: Bump starlette from 0.27.0 to 0.40.0 in /src
 risk_analysis:
   level: Medium
   factors:
-  - - Error handling changes
   - []
 test_cases:
 - id: TC-001
-  title: Verify the updated Axios version from 0.21.1 to 0.28.0
+  title: No title
   priority: Medium
-  description: Test the functionality of Axios after its upgrade from version 0.21.1
-    to 0.28.0 in the application.
+  description: No description
   steps:
-  - Initialize an instance of Axios using default settings.
-  - Send a GET request to a valid API endpoint.
-  - Verify that the response is received correctly and contains the expected data.
+  - Import starlette module in a test script
+  - Write a test function which was working with the previous version and check if
+    it works as expected with the new version
   - ''
-  expected_result: The updated Axios version should not affect the basic functionality,
-    and it should be able to make requests successfully and handle responses effectively.
+  expected_result: The test function should pass without any errors or unexpected
+    behaviors.
 - id: TC-002
-  title: Check for any new features or changes in Axios 0.28.0
+  title: No title
   priority: Medium
-  description: Investigate the possible introduction of new features or changes in
-    Axios version 0.28.0 that may improve functionality or provide additional capabilities.
+  description: No description
   steps:
-  - Utilize the updated Axios instance to send requests using various methods (e.g.,
-    GET, POST, PUT, DELETE).
-  - Verify if any new configuration options are available for request customization.
-  - Investigate error handling and timeout behavior in the new version.
+  - Install and run OWASP ZAP or bandit on the new starlette codebase
+  - Analyze the results for any potential security vulnerabilities
   - ''
-  expected_result: The updated Axios version should provide improved functionality
-    or additional features that enhance the application's performance and stability.
+  expected_result: The test should not find any critical or high severity security
+    vulnerabilities in the new version.
 - id: TC-003
-  title: Ensure backwards compatibility with older dependencies using Axios 0.28.0
-  priority: High
-  description: Test the compatibility of Axios version 0.28.0 with existing dependencies
-    in the application to avoid any unexpected issues or errors.
+  title: No title
+  priority: Medium
+  description: No description
   steps:
-  - Identify all dependencies that interact with Axios in the project.
-  - Verify if these dependencies still work correctly after upgrading Axios to version
-    0.28.0.
-  - Test the functionality of the application by sending requests and verifying responses
-    using both old and new versions of Axios.
+  - Create a custom exception class
+  - Use the custom exception in a route handler and trigger it intentionally
+  - Check if the exception is handled correctly by starlette and an appropriate error
+    message is returned to the client
   - ''
-  expected_result: The updated Axios version should not cause any breaking changes
-    that affect the compatibility with existing dependencies, and the application's
-    functionality should remain consistent across different Axios versions.
+  expected_result: Starlette should be able to handle the custom exception gracefully,
+    returning an appropriate error message to the client.
+- id: TC-004
+  title: No title
+  priority: Medium
+  description: No description
+  steps:
+  - Create a test script which uses an API or functionality from starlette 0.27.0
+  - Run the test script with both versions (0.27.0 and 0.40.0) of starlette installed
+    separately
+  - Check if there are any differences in behavior or outcomes between the two versions
+  - ''
+  expected_result: There should not be any noticeable differences in behavior or outcomes
+    when using the same API or functionality with both versions (0.27.0 and 0.40.0)
+    of starlette.

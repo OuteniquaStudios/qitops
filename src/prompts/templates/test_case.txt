@@ -10,22 +10,20 @@ Changed Files:
 Diffs:
 {diffs}
 
-Generate specific test cases in this format:
+Generate test cases in this exact format (maintain the exact structure and indentation):
 
 TC-001:
-- Title: [Test objective]
-- Priority: {risk_level}
-- Description: [Test scenario]
+- Title: [Clear test objective]
+- Priority: [High/Medium/Low]
+- Description: [Detailed test description]
 - Steps:
-  - [Step 1]
-  - [Step 2]
-- Expected Results: [Expected outcome]
+  - [Specific step 1]
+  - [Specific step 2]
+- Expected Results: [Clear expected outcome]
 
-Focus on:
+Generate at least 3 test cases focusing on:
 - Code changes shown in diffs
 - Security implications
 - Error handling
 - Edge cases
 - Backwards compatibility
-
-Generate at least 3 test cases.
