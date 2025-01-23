@@ -70,4 +70,4 @@ See [CONTRIBUTING.md](CONTRIBUTING.md) for guidelines.
 
 ## License
 
-MIT License
+AGPL-3.0 license
