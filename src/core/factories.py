@@ -32,19 +32,23 @@ class FactoryManager:
             if provider_type in ['vcs', 'llm', 'output']:
                 registry = getattr(self, f"{provider_type}_registry")
                 for name, cfg in provider_config.items():
-                    # Register provider with its config in one step
-                    if provider_type == 'vcs' and name == 'github':
-                        from services.vcs.github_service import GitHubService
-                        registry.register(name, GitHubService, cfg)
-                    elif provider_type == 'llm' and name == 'litellm':
-                        from services.llm.llm_service import LLMService
-                        registry.register(name, LLMService, cfg)
-                    elif provider_type == 'output' and name == 'yaml':
-                        from services.output.yaml_writer import YAMLWriter
-                        registry.register(name, YAMLWriter, cfg)
-                    elif provider_type == 'output' and name == 'json':
-                        from services.output.json_writer import JSONWriter
-                        registry.register(name, JSONWriter, cfg)
+                    # Only register if not already registered
+                    if name not in registry.list_providers():
+                        if provider_type == 'vcs' and name == 'github':
+                            from services.vcs.github_service import GitHubService
+                            registry.register(name, GitHubService, cfg)
+                        elif provider_type == 'llm' and name == 'litellm':
+                            from services.llm.llm_service import LLMService
+                            registry.register(name, LLMService, cfg)
+                        elif provider_type == 'output' and name == 'yaml':
+                            from services.output.yaml_writer import YAMLWriter
+                            registry.register(name, YAMLWriter, cfg)
+                        elif provider_type == 'output' and name == 'json':
+                            from services.output.json_writer import JSONWriter
+                            registry.register(name, JSONWriter, cfg)
+                    else:
+                        # Update existing provider config
+                        registry.update_config(name, cfg)
 
 # Global factory manager instance
 factory_manager = FactoryManager()
