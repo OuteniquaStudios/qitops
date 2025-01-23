@@ -1,12 +1,12 @@
 # qitops
 
-Quality Integration Testing Operations (QitOps) - A GitOps-oriented framework for automated test generation using LLMs.
+A GitOps-oriented framework for automated test generation using LLMs.
 
 ## Overview
-QItOps integrates automated testing into developer workflows by analyzing version control changes and generating contextual test cases. It follows a modular architecture allowing flexible integration with different VCS platforms and LLM providers.
+QitOps integrates automated testing into developer workflows by analyzing version control changes and generating contextual test cases. It follows a modular architecture allowing flexible integration with different VCS platforms and LLM providers.
 
 ## Key Features
-- Pluggable VCS providers (GitHub, BitBucket, CodeCommit)
+- Pluggable VCS providers
 - Interchangeable LLM backends
 - Automated risk pattern analysis
 - Context-aware test case generation
@@ -16,7 +16,7 @@ QItOps integrates automated testing into developer workflows by analyzing versio
 ## Installation
 
 ```bash
-git clone https://github.com/yourusername/qitops.git
+git clone https://github.com/OuteniquaStudios/qitops.git
 cd qitops
 pip install -r requirements.txt
 ```
