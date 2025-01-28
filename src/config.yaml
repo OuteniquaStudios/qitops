@@ -1,0 +1,13 @@
+providers:
+  vcs:
+    github:
+      token: ${GITHUB_TOKEN}  # Will be loaded from environment
+  llm:
+    litellm:
+      model: "ollama/mistral"
+      temperature: 0.7
+  output:
+    yaml: {}
+
+prompt: "prompts/pr_test_case_prompt.txt"
+output: "test_cases_output.yaml"

@@ -1,4 +1,4 @@
-from typing import Dict, Type, Any
+from typing import Dict, Type, Any, List
 from services.base.vcs_provider import VCSProvider
 from services.base.llm_provider import LLMProvider
 from services.base.output_provider import OutputProvider
@@ -15,23 +15,31 @@ class ProviderRegistry:
         if not name or not isinstance(name, str):
             raise ValueError("Provider name must be a non-empty string")
         
-        if name in self._providers:
-            raise ValueError(f"Provider '{name}' already registered")
-            
-        self._providers[name] = provider
-        if config:
-            self._configs[name] = config
+        if name not in self._providers:
+            self._providers[name] = provider
+            if config:
+                self._configs[name] = config
+        else:
+            # Update config if provider exists
+            self.update_config(name, config)
     
-    def get_provider(self, name: str) -> Type:
-        """Get a provider implementation by name."""
+    def update_config(self, name: str, config: Dict[str, Any]) -> None:
+        """Update configuration for existing provider"""
         if name not in self._providers:
             raise KeyError(f"Provider '{name}' not found")
-        return self._providers[name]
-    
+        if isinstance(config, dict):
+            self._configs[name] = config
+        else:
+            raise ValueError(f"Config must be a dictionary, got {type(config)}")
+
+    def get_provider(self, name: str) -> Type:
+        """Get a provider implementation by name."""
+        return self._providers.get(name)
+
     def get_config(self, name: str) -> Dict[str, Any]:
         """Get provider configuration by name."""
         return self._configs.get(name, {})
-    
-    def list_providers(self) -> Dict[str, Type]:
+
+    def list_providers(self) -> List[str]:
         """List all registered providers."""
-        return self._providers.copy()
+        return list(self._providers.keys())
