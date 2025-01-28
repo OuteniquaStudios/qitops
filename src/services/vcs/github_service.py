@@ -10,21 +10,22 @@ class GitHubService(VCSProvider):
         self.logger = logging.getLogger(__name__)
 
     def get_pull_request(self, repo: str, pr_number: int) -> PullRequest:
+        """Get pull request with complete information."""
         try:
-            repository = self.client.get_repo(repo)
-            pr = repository.get_pull(pr_number)
+            repo = self.client.get_repo(repo)
+            pr = repo.get_pull(pr_number)
             
             return PullRequest(
-                number=pr_number,
+                number=pr.number,
                 title=pr.title,
-                description=pr.body or "",
+                description=pr.body or '',
                 changes=self._get_changes(pr),
-                diffs=self._get_diffs(pr),  # Use private method
+                diffs=self._get_diffs(pr),
                 base_branch=pr.base.ref,
                 head_branch=pr.head.ref
             )
         except Exception as e:
-            self.logger.error(f"Error fetching PR {pr_number} from {repo}: {str(e)}")
+            self.logger.error(f"Error getting PR: {e}")
             raise
 
     def get_diff(self, repo: str, pr_number: int) -> Dict[str, str]:
@@ -34,8 +35,16 @@ class GitHubService(VCSProvider):
         return self._get_diffs(pr)
 
     def _get_diffs(self, pr) -> Dict[str, str]:
-        """Private method for getting diffs from PR object"""
-        return {f.filename: f.patch for f in pr.get_files()}
+        """Get the diff content for each file in the PR."""
+        try:
+            files = pr.get_files()
+            return {
+                f.filename: f.patch if f.patch else ''
+                for f in files
+            }
+        except Exception as e:
+            self.logger.error(f"Error getting diffs: {e}")
+            return {}
 
     def _get_changes(self, pr) -> Dict[str, List[str]]:
         files = pr.get_files()

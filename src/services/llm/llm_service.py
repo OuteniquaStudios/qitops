@@ -28,19 +28,40 @@ class LLMService(LLMProvider):
 
     def _format_prompt(self, prompt: str, context: Dict[str, Any]) -> str:
         try:
-            return prompt.format(
-                pr_title=context.get('pr_title', ''),
-                pr_description=context.get('pr_description', ''),
-                risk_level=context.get('risk_level', ''),
-                risk_factors=context.get('risk_factors', ''),
-                changes=context.get('changes', ''),
-                diffs=context.get('diffs', '')
-            )
+            # Log the raw inputs
+            self.logger.debug("=== START PROMPT FORMATTING ===")
+            self.logger.debug(f"Raw context keys: {list(context.keys())}")
+            self.logger.debug(f"Raw context values: {context}")
+            
+            # Create formatted context with explicit type conversion to strings
+            formatted_context = {
+                'pr_title': str(context.get('pr_title', 'No title')),
+                'pr_description': str(context.get('pr_description', 'No description')),
+                'risk_level': str(context.get('risk_level', 'Unknown')),
+                'risk_factors': str(context.get('risk_factors', 'None')),
+                'changes': str(context.get('changes', '')),
+                'diffs': str(context.get('diffs', ''))
+            }
+            
+            self.logger.debug("=== FORMATTED CONTEXT ===")
+            for key, value in formatted_context.items():
+                self.logger.debug(f"{key}: {value[:100]}...")  # Log first 100 chars of each value
+            
+            # Format the prompt
+            formatted_prompt = prompt.format(**formatted_context)
+            
+            self.logger.debug("=== FORMATTING COMPLETE ===")
+            return formatted_prompt
+            
         except KeyError as e:
-            self.logger.error(f"Missing required key in context: {e}")
+            self.logger.error(f"KeyError in prompt formatting: {e}")
+            self.logger.error(f"Available context keys: {list(context.keys())}")
+            self.logger.error(f"Required keys: {['pr_title', 'pr_description', 'risk_level', 'risk_factors', 'changes', 'diffs']}")
             raise
         except Exception as e:
-            self.logger.error(f"Error formatting prompt: {e}")
+            self.logger.error(f"Unexpected error in prompt formatting: {str(e)}")
+            self.logger.error(f"Context: {context}")
+            self.logger.error(f"Prompt template: {prompt}")
             raise
 
     def _format_changes(self, changes: Dict[str, Any]) -> str:
