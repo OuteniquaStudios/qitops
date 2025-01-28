@@ -124,6 +124,7 @@ class TestCaseGenerator:
     def _parse_test_cases(self, llm_output: str) -> List[Dict]:
         test_cases = []
         try:
+            # Split into individual test cases
             case_blocks = re.split(r'TC-\d+:', llm_output)
             if not case_blocks[0].strip():
                 case_blocks = case_blocks[1:]
@@ -132,26 +133,31 @@ class TestCaseGenerator:
                 if not block.strip():
                     continue
                     
-                # Extract fields with multiline support
-                title = self._extract_field(block, r'Title:\s*(.*?)(?=\n-|$)', "No title")
-                priority = self._extract_field(block, r'Priority:\s*(.*?)(?=\n-|$)', "Medium")
-                description = self._extract_field(block, r'Description:\s*(.*?)(?=\n-|$)', "No description")
+                # Extract fields with improved regex patterns
+                title_match = re.search(r'Title:\s*([^\n]+)', block)
+                priority_match = re.search(r'Priority:\s*([^\n]+)', block)
+                description_match = re.search(r'Description:\s*([^\n]+)', block)
                 
                 # Extract steps as list
                 steps = []
                 steps_match = re.search(r'Steps:(.*?)(?=Expected Results:|$)', block, re.DOTALL)
                 if steps_match:
-                    steps = [s.strip()[2:] for s in steps_match.group(1).splitlines() if s.strip().startswith('-')]
+                    steps = [
+                        s.strip()[2:] for s in steps_match.group(1).splitlines() 
+                        if s.strip().startswith('-')
+                    ]
                 
-                expected = self._extract_field(block, r'Expected Results:\s*(.*?)(?=\n\n|$)', "No expected results", re.DOTALL)
+                expected_match = re.search(r'Expected Results:\s*([^\n]+(?:\n(?!\n).*)*)', block, re.DOTALL)
+                
+                self.logger.debug(f"Title match: {title_match.group(1) if title_match else 'No match'}")
                 
                 test_cases.append({
                     "id": f"TC-{i:03d}",
-                    "title": title,
-                    "priority": priority,
-                    "description": description,
+                    "title": title_match.group(1).strip() if title_match else "No title",
+                    "priority": priority_match.group(1).strip() if priority_match else "Medium",
+                    "description": description_match.group(1).strip() if description_match else "No description",
                     "steps": steps,
-                    "expected_result": expected,
+                    "expected_result": expected_match.group(1).strip() if expected_match else "No expected results",
                     "generated_at": datetime.now().isoformat(),
                     "approved": False,
                     "approved_by": None
@@ -159,7 +165,7 @@ class TestCaseGenerator:
                 
         except Exception as e:
             self.logger.error(f"Error parsing test cases: {str(e)}")
-            self.logger.debug(f"Raw LLM output: {llm_output}")
+            self.logger.debug(f"Raw LLM output:\n{llm_output}")
             
         return test_cases
 
