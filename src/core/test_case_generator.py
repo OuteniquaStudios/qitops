@@ -48,6 +48,7 @@ class TestCaseGenerator:
                 self.console.print(f"\n[green]✅ Results saved to {output_file}[/green]")
                 
             except Exception as e:
+                self.logger.error(f"Generation error: {str(e)}")
                 self.console.print(f"[red]Error: {str(e)}[/red]")
                 raise
 
@@ -56,28 +57,26 @@ class TestCaseGenerator:
 
     def _create_context(self, pr: PullRequest, risk_analysis: dict) -> dict:
         try:
-            changes = pr.changes if isinstance(pr.changes, dict) else {"changes": str(pr.changes)}
-            diffs = pr.diffs if isinstance(pr.diffs, dict) else {"diffs": str(pr.diffs)}
+            # Ensure risk_analysis is a dict
+            if not isinstance(risk_analysis, dict):
+                self.logger.warning(f"Invalid risk_analysis type: {type(risk_analysis)}")
+                risk_analysis = {
+                    "level": "Unknown",
+                    "factors": [],
+                    "details": []
+                }
+            
+            # Format risk factors safely using 'factors' instead of 'risk_factors'
+            factors = risk_analysis.get("factors", [])
+            risk_factors = ", ".join(str(f) for f in factors) if factors else "None"
             
             return {
-                "pr": {
-                    "number": pr.number,
-                    "title": pr.title,
-                    "description": pr.description,
-                    "base_branch": pr.base_branch,
-                    "head_branch": pr.head_branch,
-                    "changes": self._format_changes(changes),
-                    "diffs": self._format_diffs(diffs)
-                },
-                "risk_analysis": {
-                    "level": risk_analysis.get("level", "Unknown"),
-                    "factors": risk_analysis.get("factors", []),
-                    "details": risk_analysis.get("details", [])
-                },
-                "metadata": {
-                    "generated_at": datetime.now().isoformat(),
-                    "generator_version": "1.0.0"
-                }
+                "pr_title": pr.title,
+                "pr_description": pr.description,
+                "risk_level": risk_analysis.get("level", "Unknown"),
+                "risk_factors": risk_factors,
+                "changes": self._format_changes(pr.changes),
+                "diffs": self._format_diffs(pr.diffs)
             }
         except Exception as e:
             self.logger.error(f"Error creating context: {e}")
@@ -183,10 +182,22 @@ class TestCaseGenerator:
         table.add_column("Category", style="cyan")
         table.add_column("Details", style="magenta")
         
-        table.add_row("Risk Level", f"[bold]{risk_analysis['level']}[/bold]")
+        # Safely get risk level
+        level = risk_analysis.get('level', 'Unknown')
+        table.add_row("Risk Level", f"[bold]{level}[/bold]")
         
-        for factor, detail in zip(risk_analysis['factors'], risk_analysis['details']):
-            table.add_row(factor, detail)
+        # Safely handle factors and details
+        factors = risk_analysis.get('factors', [])
+        details = risk_analysis.get('details', [])
+        
+        # If we have both factors and details, zip them
+        if factors and details:
+            for factor, detail in zip(factors, details):
+                table.add_row(str(factor), str(detail))
+        # Otherwise just show factors
+        elif factors:
+            for factor in factors:
+                table.add_row(str(factor), "")
         
         self.console.print("\n")
         self.console.print(table)
