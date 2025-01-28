@@ -27,29 +27,21 @@ class LLMService(LLMProvider):
         return result
 
     def _format_prompt(self, prompt: str, context: Dict[str, Any]) -> str:
-        pr = context.get('pr', {})
-        risk = context.get('risk_analysis', {})
-        
-        # Format changes
-        changes_str = "\n".join(
-            f"{k}: {', '.join(v)}" 
-            for k, v in pr.get('changes', {}).items() 
-            if v
-        )
-        
-        # Format diffs
-        diffs_str = "\n".join(
-            f"File: {fname}\n{diff}" 
-            for fname, diff in pr.get('diffs', {}).items()
-        )
-        
-        return prompt.format(
-            pr_title=pr.get('title', ''),
-            pr_description=pr.get('description', ''),
-            risk_level=risk.get('level', ''),
-            changes=changes_str,
-            diffs=diffs_str
-        )
+        try:
+            return prompt.format(
+                pr_title=context.get('pr_title', ''),
+                pr_description=context.get('pr_description', ''),
+                risk_level=context.get('risk_level', ''),
+                risk_factors=context.get('risk_factors', ''),
+                changes=context.get('changes', ''),
+                diffs=context.get('diffs', '')
+            )
+        except KeyError as e:
+            self.logger.error(f"Missing required key in context: {e}")
+            raise
+        except Exception as e:
+            self.logger.error(f"Error formatting prompt: {e}")
+            raise
 
     def _format_changes(self, changes: Dict[str, Any]) -> str:
         result = []

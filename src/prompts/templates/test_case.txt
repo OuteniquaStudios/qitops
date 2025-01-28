@@ -2,7 +2,10 @@ Given the following pull request changes:
 
 Title: {pr_title}
 Description: {pr_description}
-Risk Level: {risk_level}
+
+Risk Assessment:
+- Level: {risk_level}
+- Factors: {risk_factors}
 
 Changed Files:
 {changes}
@@ -10,20 +13,18 @@ Changed Files:
 Diffs:
 {diffs}
 
-Generate test cases in this exact format (maintain the exact structure and indentation):
+Generate specific test cases addressing the identified risk factors.
+Focus on security, compatibility, and error handling.
+
+Format each test case exactly as follows:
 
 TC-001:
-- Title: [Clear test objective]
-- Priority: [High/Medium/Low]
-- Description: [Detailed test description]
+- Title: [Specific test objective]
+- Priority: [Based on risk level]
+- Description: [Detailed scenario]
 - Steps:
-  - [Specific step 1]
-  - [Specific step 2]
-- Expected Results: [Clear expected outcome]
+  - [Clear, actionable step]
+  - [Expected interaction]
+- Expected Results: [Verifiable outcome]
 
-Generate at least 3 test cases focusing on:
-- Code changes shown in diffs
-- Security implications
-- Error handling
-- Edge cases
-- Backwards compatibility
+Generate at least 3 test cases.
