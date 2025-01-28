@@ -9,9 +9,10 @@ from rich.console import Console
 from rich.panel import Panel
 from rich.table import Table
 import yaml
-from typing import List, Dict, Any
+from typing import List, Dict, Any, Optional
 import re
 import logging
+from itertools import zip_longest
 
 class TestCaseGenerator:
     def __init__(self, 
@@ -25,18 +26,42 @@ class TestCaseGenerator:
         self.console = Console()
         self.logger = logging.getLogger(__name__)
 
+    def _safe_get_value(self, data: Dict[str, Any], key: str, default: Any) -> Any:
+        """Safely retrieve a value from a dictionary with logging."""
+        try:
+            return data.get(key, default)
+        except Exception as e:
+            self.logger.warning(f"Error getting {key}: {str(e)}")
+            return default
+
+    def _ensure_dict(self, data: Any, default: Optional[Dict] = None) -> Dict:
+        """Ensure input is a dictionary with logging."""
+        if default is None:
+            default = {}
+        if not isinstance(data, dict):
+            self.logger.warning(f"Expected dict, got {type(data)}. Using default.")
+            return default
+        return data
+
     def generate(self, repo: str, pr_number: int, output_file: str) -> None:
         self.console.print(f"[bold blue]🚀 Generating test cases for PR #{pr_number}[/bold blue]")
         
         with self.console.status("[bold yellow]Analyzing PR...") as status:
             try:
                 pr = self.vcs_provider.get_pull_request(repo, pr_number)
+                self.logger.debug(f"PR Data: title='{pr.title}', description='{pr.description}'")
+                
                 risk_analysis = self._analyze_risk(pr)
+                self.logger.debug(f"Risk Analysis Result: {risk_analysis}")
+                
                 self._display_risk_analysis(risk_analysis)
                 
                 status.update("[bold yellow]Generating test cases...")
                 prompt = self._load_prompt()
+                self.logger.debug(f"Loaded prompt template: {prompt[:100]}...")
+                
                 context = self._create_context(pr, risk_analysis)
+                self.logger.debug(f"Created context: {context}")
                 
                 llm_output = self.llm_provider.generate(prompt, context)
                 test_cases = self._parse_test_cases(llm_output)
@@ -48,74 +73,82 @@ class TestCaseGenerator:
                 self.console.print(f"\n[green]✅ Results saved to {output_file}[/green]")
                 
             except Exception as e:
-                self.logger.error(f"Generation error: {str(e)}")
+                self.logger.error(f"Generation error: {str(e)}", exc_info=True)
                 self.console.print(f"[red]Error: {str(e)}[/red]")
                 raise
 
     def _analyze_risk(self, pr: PullRequest) -> Dict[str, Any]:
-        return self.risk_analyzer.analyze(pr.changes, pr.diffs)
+        """Analyze PR for risks and handle None values."""
+        try:
+            # Convert None values to empty dicts
+            changes = {} if pr.changes is None else pr.changes
+            diffs = {} if pr.diffs is None else pr.diffs
+            
+            # Ensure we have dictionaries
+            changes = self._ensure_dict(changes, {"modified": []})
+            diffs = self._ensure_dict(diffs, {"file": ""})
+            
+            self.logger.debug(f"Analyzing PR with changes: {changes}")
+            self.logger.debug(f"Diffs: {diffs}")
+            
+            return self.risk_analyzer.analyze(changes, diffs)
+        except Exception as e:
+            self.logger.error(f"Error in risk analysis: {str(e)}")
+            return self._create_error_analysis(str(e))
+
+    def _create_error_analysis(self, error_msg: str) -> Dict[str, Any]:
+        """Create a standardized error analysis response."""
+        return {
+            "level": "High",
+            "factors": ["Analysis Error"],
+            "details": [error_msg]
+        }
 
     def _create_context(self, pr: PullRequest, risk_analysis: dict) -> dict:
-        try:
-            # Ensure risk_analysis is a dict
-            if not isinstance(risk_analysis, dict):
-                self.logger.warning(f"Invalid risk_analysis type: {type(risk_analysis)}")
-                risk_analysis = {
-                    "level": "Unknown",
-                    "factors": [],
-                    "details": []
-                }
-            
-            # Format risk factors safely using 'factors' instead of 'risk_factors'
-            factors = risk_analysis.get("factors", [])
-            risk_factors = ", ".join(str(f) for f in factors) if factors else "None"
-            
-            return {
-                "pr_title": pr.title,
-                "pr_description": pr.description,
-                "risk_level": risk_analysis.get("level", "Unknown"),
-                "risk_factors": risk_factors,
-                "changes": self._format_changes(pr.changes),
-                "diffs": self._format_diffs(pr.diffs)
-            }
-        except Exception as e:
-            self.logger.error(f"Error creating context: {e}")
-            raise
+        """Create focused context for test case generation."""
+        # Format risk factors with details
+        factors = risk_analysis.get("factors", [])
+        details = risk_analysis.get("details", [])
+        risk_factors = []
+        for f, d in zip_longest(factors, details, fillvalue=""):
+            if f and d:
+                risk_factors.append(f"- {f}: {d}")
+            elif f:
+                risk_factors.append(f"- {f}")
+        
+        return {
+            "pr_title": str(pr.title),
+            "pr_description": str(pr.description),
+            "risk_level": str(risk_analysis.get("level", "High")),
+            "risk_factors": "\n".join(risk_factors),
+            "changes": self._format_changes(pr.changes),
+            "diffs": self._format_diffs(pr.diffs)
+        }
 
-    def _format_changes(self, changes: Dict[str, Any]) -> str:
-        try:
-            if not isinstance(changes, dict):
-                return str(changes)
-            
-            formatted = []
-            for change_type, files in changes.items():
-                if isinstance(files, list):
-                    formatted.append(f"{change_type.capitalize()}:")
-                    formatted.extend(f"  - {file}" for file in files)
-                else:
-                    formatted.append(f"{change_type}: {files}")
-            return "\n".join(formatted)
-        except Exception as e:
-            self.logger.error(f"Error formatting changes: {e}")
-            return str(changes)
+    def _format_changes(self, changes: Dict[str, List[str]]) -> str:
+        """Format changes in a more descriptive way for the LLM."""
+        result = []
+        if changes.get('added'):
+            result.append("Added files:")
+            result.extend(f"  - {f}" for f in changes['added'])
+        if changes.get('modified'):
+            result.append("Modified files:")
+            result.extend(f"  - {f}" for f in changes['modified'])
+        if changes.get('removed'):
+            result.append("Removed files:")
+            result.extend(f"  - {f}" for f in changes['removed'])
+        return "\n".join(result) if result else "No file changes"
 
-    def _format_diffs(self, diffs: Dict[str, Any]) -> str:
-        try:
-            if not isinstance(diffs, dict):
-                return str(diffs)
-                
-            formatted = []
-            for file_path, diff in diffs.items():
-                formatted.extend([
-                    f"File: {file_path}",
-                    "```diff",
-                    str(diff).strip(),
-                    "```\n"
-                ])
-            return "\n".join(formatted)
-        except Exception as e:
-            self.logger.error(f"Error formatting diffs: {e}")
-            return str(diffs)
+    def _format_diffs(self, diffs: Dict[str, str]) -> str:
+        """Format diffs to highlight important code changes."""
+        result = []
+        for filename, diff in diffs.items():
+            if diff:  # Only include files with actual changes
+                result.append(f"File: {filename}")
+                result.append("```diff")
+                result.append(diff[:1000] if len(diff) > 1000 else diff)  # Limit diff size
+                result.append("```\n")
+        return "\n".join(result) if result else "No code changes available"
 
     def _load_prompt(self) -> str:
         with open('prompts/templates/test_case.txt', 'r') as f:
@@ -124,7 +157,6 @@ class TestCaseGenerator:
     def _parse_test_cases(self, llm_output: str) -> List[Dict]:
         test_cases = []
         try:
-            # Split into individual test cases
             case_blocks = re.split(r'TC-\d+:', llm_output)
             if not case_blocks[0].strip():
                 case_blocks = case_blocks[1:]
@@ -132,13 +164,19 @@ class TestCaseGenerator:
             for i, block in enumerate(case_blocks, 1):
                 if not block.strip():
                     continue
-                    
-                # Extract fields with improved regex patterns
-                title_match = re.search(r'Title:\s*([^\n]+)', block)
-                priority_match = re.search(r'Priority:\s*([^\n]+)', block)
-                description_match = re.search(r'Description:\s*([^\n]+)', block)
                 
-                # Extract steps as list
+                fields = {
+                    'title': r'Title:\s*([^\n]+)',
+                    'priority': r'Priority:\s*([^\n]+)',
+                    'description': r'Description:\s*([^\n]+)',
+                }
+                
+                extracted_fields = {
+                    field: re.search(pattern, block).group(1).strip() 
+                    if re.search(pattern, block) else f"No {field}"
+                    for field, pattern in fields.items()
+                }
+                
                 steps = []
                 steps_match = re.search(r'Steps:(.*?)(?=Expected Results:|$)', block, re.DOTALL)
                 if steps_match:
@@ -149,13 +187,9 @@ class TestCaseGenerator:
                 
                 expected_match = re.search(r'Expected Results:\s*([^\n]+(?:\n(?!\n).*)*)', block, re.DOTALL)
                 
-                self.logger.debug(f"Title match: {title_match.group(1) if title_match else 'No match'}")
-                
                 test_cases.append({
                     "id": f"TC-{i:03d}",
-                    "title": title_match.group(1).strip() if title_match else "No title",
-                    "priority": priority_match.group(1).strip() if priority_match else "Medium",
-                    "description": description_match.group(1).strip() if description_match else "No description",
+                    **extracted_fields,
                     "steps": steps,
                     "expected_result": expected_match.group(1).strip() if expected_match else "No expected results",
                     "generated_at": datetime.now().isoformat(),
@@ -169,16 +203,12 @@ class TestCaseGenerator:
             
         return test_cases
 
-    def _extract_field(self, text: str, pattern: str, default: str, flags: re.RegexFlag = 0) -> str:
-        match = re.search(pattern, text, flags)
-        return match.group(1).strip() if match else default
-
     def _save_results(self, pr: PullRequest, risk_analysis: dict, test_cases: List[Dict], output_file: str) -> None:
         results = {
             "pr_number": pr.number,
             "pr_title": pr.title,
             "risk_analysis": risk_analysis,
-            "test_cases": test_cases  # Already in dict format
+            "test_cases": test_cases
         }
         self.output_provider.write(results, output_file)
 
@@ -188,19 +218,15 @@ class TestCaseGenerator:
         table.add_column("Category", style="cyan")
         table.add_column("Details", style="magenta")
         
-        # Safely get risk level
-        level = risk_analysis.get('level', 'Unknown')
+        level = self._safe_get_value(risk_analysis, 'level', 'Unknown')
         table.add_row("Risk Level", f"[bold]{level}[/bold]")
         
-        # Safely handle factors and details
-        factors = risk_analysis.get('factors', [])
-        details = risk_analysis.get('details', [])
+        factors = self._safe_get_value(risk_analysis, 'factors', [])
+        details = self._safe_get_value(risk_analysis, 'details', [])
         
-        # If we have both factors and details, zip them
         if factors and details:
             for factor, detail in zip(factors, details):
                 table.add_row(str(factor), str(detail))
-        # Otherwise just show factors
         elif factors:
             for factor in factors:
                 table.add_row(str(factor), "")
